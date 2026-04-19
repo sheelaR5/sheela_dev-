@@ -1,0 +1,33 @@
+name: Notes-App-Pipeline
+
+on:
+  workflow_dispatch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Create PEM file
+        run: |
+          echo "${{ secrets.secret_key }}" > sheela-key.pem
+          chmod 400 sheela-key.pem
+
+      - name: Copy files to EC2
+        run: |
+          scp -o StrictHostKeyChecking=no -i sheela-key.pem app.py ec2-user@54.174.104.122:/home/ec2-user/
+          scp -o StrictHostKeyChecking=no -i sheela-key.pem requirements.txt ec2-user@54.174.104.122:/home/ec2-user/
+          scp -o StrictHostKeyChecking=no -i sheela-key.pem Dockerfile ec2-user@54.174.104.122:/home/ec2-user/
+          scp -o StrictHostKeyChecking=no -i sheela-key.pem notes.txt ec2-user@54.174.104.122:/home/ec2-user/
+
+      - name: Deploy using Docker
+        run: |
+          ssh -o StrictHostKeyChecking=no -i key.pem ec2-user@54.174.104.122 "
+          sudo docker stop notes-app || true &&
+          sudo docker rm notes-app || true &&
+          sudo docker build -t notes-app /home/ec2-user &&
+          sudo docker run -d -p 5001:5000 --name notes-app notes-app
+          "
